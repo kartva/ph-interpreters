@@ -2,30 +2,35 @@ from typing import TypeVar, Generic, Tuple, Any, Union, Literal, Callable, TypeA
 from parser_combinator import Parser, ParseSuccess, ParseError, ParseResult, Ok, Err
 
 class ASTNode:
-    pass
+    __match_args__ = ()  # No attributes for base ASTNode
 
 # --- A program is composed of function declarations ---
 
 class Program(ASTNode):
+    __match_args__ = ("funcs",)
     def __init__(self, funcs: List['FunctionDeclaration']):
         self.funcs = funcs
     def __repr__(self):
         return f"Program({self.funcs})"
 
 class FunctionDeclaration(ASTNode):
-    def __init__(self, name: 'Identifier', parameters: List['Identifier'], body: List['Statement']):
+    __match_args__ = ("name", "parameters", "body")
+    def __init__(self, name: 'Identifier', parameters: List['Identifier'], body: 'BlockStatement'):
         self.name = name
         self.parameters = parameters
         self.body = body
     def __repr__(self):
         return f"fn {self.name} ({self.parameters}) {self.body})"
 
+# --- A function contains a list of statements ---
+
 class Statement(ASTNode):
-    pass
+    __match_args__ = ()  # Base statement has no attributes
 
 # --- Simple statements are statements that can't contain other statements ---
 
 class VarSetStatement(Statement):
+    __match_args__ = ("name", "rhs")
     def __init__(self, identifier: str, rhs: 'Expression'):
         self.name = identifier
         self.rhs = rhs
@@ -33,15 +38,32 @@ class VarSetStatement(Statement):
         return f"VarStatement({self.name}, {self.rhs})"
     
 class ReturnStatement(Statement):
+    __match_args__ = ("expression",)
     def __init__(self, expression: 'Expression'):
         self.expression = expression
     def __repr__(self):
         return f"ReturnStatement({self.expression})"
 
+# '2;' is an example of an expression statement.
+class ExpressionStatement(Statement):
+    __match_args__ = ("expression",)
+    def __init__(self, expression: 'Expression'):
+        self.expression = expression
+    def __repr__(self):
+        return f"{self.expression}"
+
 # --- Compound statements are statements that can contain other statements ---
 
+class BlockStatement(Statement):
+    __match_args__ = ("statements",)
+    def __init__(self, statements: List[Statement]):
+        self.statements = statements
+    def __repr__(self):
+        return f"BlockStatement({self.statements})"
+
 class IfStatement(Statement):
-    def __init__(self, condition: 'Expression', then_block: List[Statement], else_block: List[Statement] | None):
+    __match_args__ = ("condition", "then_block", "else_block")
+    def __init__(self, condition: 'Expression', then_block: BlockStatement, else_block: BlockStatement | None):
         self.condition = condition
         self.then_block = then_block
         if else_block:
@@ -52,38 +74,20 @@ class IfStatement(Statement):
         return f"IfStatement({self.condition}, {self.then_block}, {self.else_block})"
     
 class WhileStatement(Statement):
-    def __init__(self, condition: 'Expression', block: List[Statement]):
+    __match_args__ = ("condition", "block")
+    def __init__(self, condition: 'Expression', block: BlockStatement):
         self.condition = condition
         self.block = block
     def __repr__(self):
         return f"WhileStatement({self.condition}, {self.block})"
     
-class BlockStatement(Statement):
-    def __init__(self, statements: List[Statement]):
-        self.statements = statements
-    def __repr__(self):
-        return f"BlockStatement({self.statements})"
-
-class ExpressionStatement(Statement):
-    def __init__(self, expression: 'Expression'):
-        self.expression = expression
-    def __repr__(self):
-        return f"{self.expression}"
-    
-# --- Expression classes start here ---
+# --- Statements may contain expressions. ---
 
 class Expression(ASTNode):
-    pass
-
-class BinaryExpression(Expression):
-    def __init__(self, left: Expression, operator: str, right: Expression):
-        self.left = left
-        self.operator = operator
-        self.right = right
-    def __repr__(self):
-        return f"({self.left} {self.operator} {self.right})"
+    __match_args__ = ()  # Base Expression has no fields
 
 class NumberLiteral(Expression):
+    __match_args__ = ("value",)
     def __init__(self, value: int):
         self.value = value
     def __repr__(self):
@@ -91,19 +95,33 @@ class NumberLiteral(Expression):
     
 # TODO: replace instances of Identifier with NewType bind to str
 class Identifier(Expression):
+    __match_args__ = ("ident",)
     def __init__(self, name: str):
         self.ident = name
     def __repr__(self):
         return f"{self.ident}"
+
+class BinaryExpression(Expression):
+    __match_args__ = ("left", "operator", "right")
+    def __init__(self, left: Expression, operator: str, right: Expression):
+        self.left = left
+        self.operator = operator
+        self.right = right
+    def __repr__(self):
+        return f"({self.left} {self.operator} {self.right})"
+
     
 class CallExpression(Expression):
+    __match_args__ = ("callee", "arguments")
     def __init__(self, callee: Expression, arguments: List[Expression]):
         self.callee = callee
         self.arguments = arguments
     def __repr__(self):
         return f"{self.callee}({', '.join(map(str, self.arguments))})"
     
-def parse(s: str) -> Program:
+def parse(s: str, debug=False) -> Program:
+    if debug: Parser.enable_debug()
+
     p = lambda x: Parser.just(x).padded()
     padded_ident = Parser.ident().padded().map(Identifier)
 
@@ -156,7 +174,8 @@ def parse(s: str) -> Program:
     def create_stmt_block(stmt_block: Parser[BlockStatement]) -> Parser[BlockStatement]:
         if_stmt = p("if").ignore_then(expr).then(stmt_block) \
             .then(p("else").ignore_then(stmt_block).or_not()) \
-            .map(lambda t: IfStatement(t[0][0], t[0][1], t[1]))
+            .map(lambda t: \
+                IfStatement(t[0][0], t[0][1], t[1]))
         
         while_stmt = p("while").ignore_then(expr).then(stmt_block) \
             .map(lambda t: WhileStatement(t[0], t[1]))
@@ -169,7 +188,7 @@ def parse(s: str) -> Program:
 
         return stmt.then_ignore(p(';')).repeated().between(p('{'), p('}')).map(BlockStatement)
 
-    stmt_block = Parser.recursive(create_stmt_block)
+    stmt_block: Parser[BlockStatement] = Parser.recursive(create_stmt_block)
     fn_statement = p("fn") \
         .ignore_then(padded_ident) \
         .then(padded_ident.sep_by(p(',')).between(p('('), p(')'))) \
@@ -179,11 +198,3 @@ def parse(s: str) -> Program:
 
     parsed, _ = (program_parser.eof())(s).unwrap()
     return parsed
-
-def main():
-    program = parse("""
-                    fn add(a, b) { return a + b; }""")
-    print(program)
-
-if __name__ == "__main__":
-    main()
