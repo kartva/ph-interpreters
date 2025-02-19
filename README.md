@@ -11,7 +11,7 @@ This repository contains an implementation of the toy `PH` language written in P
 - [`ast_.py`](ast_.py): contains AST node definitions and the language parser.
 - [`interpreter.py`](interpreter.py): the whole point.
 
-(TODO) Link to the workshop slideshow. Follow along!
+[Link to the workshop slides. Follow along!](https://puhack.horse/pl-workshop-25)
 
 ## PH BNF grammer
 
