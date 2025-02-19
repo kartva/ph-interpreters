@@ -1,72 +1,69 @@
-from parse_ast import parse
-import parse_ast
+from ast_ import parse
+import ast_
 
-def interpret_expression(expression: parse_ast.Expression, ctx):
+# Added EarlyReturn exception.
+class EarlyReturn(Exception):
+    def __init__(self, value):
+        self.value = value
+
+def interpret_expression(expression: ast_.Expression, ctx):
     pass
 
 # --- Interpret an AST node. Returns the result, if any. May modify the given variables and functions dictionaries. ---
 # We don't use default empty {} for variables and functions because https://docs.python-guide.org/writing/gotchas/#mutable-default-arguments
 def interpret(astnode, \
-              variables: dict[str, int] | None = None, \
-              functions: dict[str, parse_ast.FunctionDeclaration] | None = None):
-
-    if variables is None:
-        variables = {}
-    if functions is None:
-        functions = {}
+              variables: dict[str, int], \
+              functions: dict[str, ast_.FunctionDeclaration]):
 
     match astnode:
         # --- We're given a program. Execute the 'main' function ---
-        case parse_ast.Program(function_declarations):
+        case ast_.Program(function_declarations):
             # Interpret all functions to add them to the functions dictionary.
             for func in function_declarations:
                 interpret(func, variables, functions)
             
-            print(functions)
-            main_fn = functions["main"]
-            return interpret(main_fn, variables, functions)
+            return interpret(ast_.CallExpression(ast_.Identifier("main"), []), variables, functions)
 
         # --- Handling a function declaration ---
-        case parse_ast.FunctionDeclaration(name, args, body):
-            functions[name] = parse_ast.FunctionDeclaration(name, args, body)
+        case ast_.FunctionDeclaration(name, args, body):
+            functions[name] = ast_.FunctionDeclaration(name, args, body)
 
         # --- Handling simple statements ---
 
-        case parse_ast.VarSetStatement(name, rhs):
-            variables[name] = interpret(rhs)
-        case parse_ast.ReturnStatement(expression):
-            # We handle propagating the return value from the function in the CallExpression case.
-            return interpret(expression, variables, functions)
-        case parse_ast.ExpressionStatement(expression):
+        case ast_.VarSetStatement(name, rhs):
+            variables[name] = interpret(rhs, variables, functions)
+        # Modified ReturnStatement to throw EarlyReturn.
+        case ast_.ReturnStatement(expression):
+            raise EarlyReturn(interpret(expression, variables, functions))
+        case ast_.ExpressionStatement(expression):
             return interpret(expression, variables, functions)
         
         # --- Handling compound statements ---
 
-        case parse_ast.BlockStatement(statements):
+        case ast_.BlockStatement(statements):
             # Create a new scope so that variables declared in this block don't leak out.
             child_scope = variables.copy()
             for statement in statements:
-                if isinstance(statement, parse_ast.ReturnStatement):
-                    return interpret(statement, child_scope, functions)
+                # Early return will propagate via exception; no special handling needed.
                 interpret(statement, child_scope, functions)
-        case parse_ast.IfStatement(condition, then_block, else_block):
+        case ast_.IfStatement(condition, then_block, else_block):
             if interpret(condition, variables, functions):
                 return interpret(then_block, variables, functions)
             elif else_block:
                 return interpret(else_block, variables, functions)
-        case parse_ast.WhileStatement(condition, body):
+        case ast_.WhileStatement(condition, body):
             while interpret(condition, variables, functions):
                 interpret(body, variables, functions)
 
         # --- Handling expressions ---
 
-        case parse_ast.NumberLiteral(value):
+        case ast_.NumberLiteral(value):
             return value
-        case parse_ast.Identifier(name):
-            return variables[name]
-        case parse_ast.BinaryExpression(left, operator, right):
-            left_value = interpret(left, variables)
-            right_value = interpret(right, variables)
+        case ast_.Identifier(_) as ident:
+            return variables[ident]
+        case ast_.BinaryExpression(left, operator, right):
+            left_value = interpret(left, variables, functions)
+            right_value = interpret(right, variables, functions)
             if operator == "+":
                 return left_value + right_value
             elif operator == "-":
@@ -75,15 +72,27 @@ def interpret(astnode, \
                 return left_value * right_value
             elif operator == "/":
                 return left_value / right_value
+            elif operator == "<":
+                return 1 if left_value < right_value else 0
+            elif operator == ">":
+                return 1 if left_value > right_value else 0
+            elif operator == "==":
+                return 1 if left_value == right_value else 0
+            elif operator == "!=":
+                return 1 if left_value != right_value else 0
+            elif operator == "<=":
+                return 1 if left_value <= right_value else 0
+            elif operator == ">=":
+                return 1 if left_value >= right_value else 0
             else:
                 print(f"Unknown operator: {operator}")
                 exit(1)
 
-        case parse_ast.CallExpression(callee, arguments):
-            if not isinstance(callee, parse_ast.Identifier):
+        case ast_.CallExpression(callee, arguments):
+            if not isinstance(callee, ast_.Identifier):
                 print(f"Invalid callee: {callee}")
                 exit(1)
-            callee: parse_ast.Identifier
+            callee: ast_.Identifier
 
             argument_values = [interpret(arg, variables, functions) for arg in arguments]
 
@@ -92,15 +101,20 @@ def interpret(astnode, \
                 print(argument_values[0])
                 return
 
-            fn_decl: parse_ast.FunctionDeclaration = functions[callee.ident]
+            fn_decl: ast_.FunctionDeclaration = functions[callee]
 
             child_scope = variables.copy()
 
             # zip(['a', 'b'], [1, 2]) -> [('a', 1), ('b', 2)]
-            arg_value_map = dict(zip(fn_decl.args, argument_values))
-            child_scope.update(arg_value_map)
+            parameter_value_map = dict(zip(fn_decl.parameters, argument_values))
+            child_scope.update(parameter_value_map)
 
-            return interpret(fn_decl.body, child_scope, functions)
+            # Catch EarlyReturn when invoking the function body.
+            try:
+                result = interpret(fn_decl.body, child_scope, functions)
+            except EarlyReturn as e:
+                result = e.value
+            return result
 
         case unknown:
             print(f"Unknown AST node: {unknown}")
@@ -119,8 +133,8 @@ def main():
                         print(factorial(5));
                         return 0;
                     }""")
-    print(program)
-    result = interpret(program)
+    
+    result = interpret(program, {}, {})
     print(result)
 
 if __name__ == "__main__":

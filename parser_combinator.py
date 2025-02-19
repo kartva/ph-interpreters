@@ -1,9 +1,20 @@
 from result import Ok, Err, Result
-from typing import TypeVar, Generic, Tuple, Any, Union, Literal, Callable, TypeAlias, List
+from typing import Tuple, Any, Union, Callable, List
 
 type ParseSuccess[T] = Tuple[T, str]
 type ParseError = str
 type ParseResult[T] = Result[ParseSuccess[T], ParseError]
+
+# Example library usage:
+#
+# A parser that parses a number, then a comma, then a number with any amount of spaces between them.
+#
+# Parser.enable_debug()
+# number = Parser.number().padded()
+# comma = Parser.just(",").padded()
+# parser = number.then_ignore(comma).then(number)
+# assert((1, 2) == parser.parse("  1 , 2").unwrap())
+# Parser.disable_debug()
 
 class Parser[T]:
     """A parser is an object that can be called with a string. It returns either a ParseSuccess or a ParseError.
@@ -207,17 +218,3 @@ class Parser[T]:
         cell[0] = lambda input: parser_fn(parser)(input)
 
         return parser.label("recursive")
-
-# Example library usage:
-#
-# A parser that parses a number, then a comma, then a number with any amount of spaces between them.
-
-# print(Parser.number().padded().then_ignore(Parser.just(",").padded()).then(Parser.number().padded()).parse("  1 , 2"))
-
-# Example usage with debug:
-# Parser.enable_debug()
-# number = Parser.number().with_name("number")
-# comma = Parser.just(",").padded().with_name("comma")
-# parser = number.padded().then_ignore(comma).then(number.padded())
-# result = parser.parse("  1 , 2")
-# Parser.disable_debug()

@@ -25,7 +25,7 @@ class FunctionDeclaration(ASTNode):
 # --- A function contains a list of statements ---
 
 class Statement(ASTNode):
-    __match_args__ = ()  # Base statement has no attributes
+    pass
 
 # --- Simple statements are statements that can't contain other statements ---
 
@@ -94,12 +94,17 @@ class NumberLiteral(Expression):
         return f"{self.value}"
     
 # TODO: replace instances of Identifier with NewType bind to str
+
 class Identifier(Expression):
     __match_args__ = ("ident",)
     def __init__(self, name: str):
         self.ident = name
     def __repr__(self):
         return f"{self.ident}"
+    def __eq__(self, value):
+        return isinstance(value, Identifier) and self.ident == value.ident
+    def __hash__(self):
+        return hash(self.ident)
 
 class BinaryExpression(Expression):
     __match_args__ = ("left", "operator", "right")
@@ -143,10 +148,12 @@ def parse(s: str, debug=False) -> Program:
         
         # note that unary is defined in terms of atom, NOT expr
         # this is important to prevent parsing -2 * 2 as -(2 * 2)
+
+        # rewrite -10 as -1 * 10
         unary: Parser[Expression] = \
             p('-').repeated().map(lambda l: 1 if len(l) % 2 == 0 else -1) \
             .then(atom_or_call) \
-            .map(lambda x: BinaryExpression(NumberLiteral(x[0]), '*', x[1]))
+            .map(lambda x: BinaryExpression(NumberLiteral(x[0]), '*', x[1]) if x[0] == -1 else x[1])
         
         def foldl(t: Tuple[Expression, List[Tuple[str, Expression]]]) -> Expression:
             left, right = t
@@ -163,13 +170,18 @@ def parse(s: str, debug=False) -> Program:
             .then(
                 (p('+').or_else(p('-'))).then(product).repeated()
             ).map(foldl)
+        
+        compare: Parser[Expression] = sum \
+            .then(
+                (p('==').or_else(p('!=')).or_else(p('<').or_else(p('>'))).or_else(p('<=').or_else(p('>='))).then(sum)).repeated()
+            ).map(foldl)
 
-        return sum.or_else(product).or_else(unary)
+        return compare.or_else(sum).or_else(product).or_else(unary)
 
     expr: Parser[Expression] = Parser.recursive(create_expr)
 
     var_set_stmt: Parser[Statement] = padded_ident.then_ignore(p('=')).then(expr).map(lambda t: VarSetStatement(t[0].ident, t[1]))
-    return_stmt: Parser[Statement] = p('return').then(expr).map(ReturnStatement)
+    return_stmt: Parser[Statement] = p('return').ignore_then(expr).map(ReturnStatement)
 
     def create_stmt_block(stmt_block: Parser[BlockStatement]) -> Parser[BlockStatement]:
         if_stmt = p("if").ignore_then(expr).then(stmt_block) \
