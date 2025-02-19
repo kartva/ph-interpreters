@@ -1,5 +1,10 @@
 # Purdue Hackers Interpreters Workshop
 
+> If debugging is the process of removing software bugs, then programming must be the process of putting them in.
+>
+> – Edsger Dijkstra
+
+
 This repository contains an implementation of the toy `klox` language written in Python (version 3.13 or above). File map:
 - [`result.py`](result.py): a Result type implementation taken from [https://github.com/rustedpy/result](https://github.com/rustedpy/result)
 - [`parser_combinator.py`](parser_combinator.py): a [parser combinator library](https://en.wikipedia.org/wiki/Parser_combinator)
