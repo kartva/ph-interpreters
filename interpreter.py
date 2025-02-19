@@ -120,22 +120,25 @@ def interpret(astnode, \
             print(f"Unknown AST node: {unknown}")
             exit(1)
 
+# --- Main program ---
+
+import sys
 def main():
-    program = parse("""
-                    fn factorial(n) {
-                        if n {
-                            return n * factorial(n - 1);
-                        } else {
-                            return 1;
-                        };
-                    }
-                    fn main() {
-                        print(factorial(5));
-                        return 0;
-                    }""")
+    if len(sys.argv) != 2:
+        print("Usage: python interpreter.py <file>")
+        exit(1)
     
+    file_path = sys.argv[1]
+    try:
+        with open(file_path, 'r') as file:
+            program_text = file.read()
+    except IOError as e:
+        print(f"Error reading file: {e}")
+        exit(1)
+    
+    program = parse(program_text)
     result = interpret(program, {}, {})
-    print(result)
+    print("main() returned: ", result)
 
 if __name__ == "__main__":
     main()

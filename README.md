@@ -5,7 +5,7 @@
 > – Edsger Dijkstra
 
 
-This repository contains an implementation of the toy `klox` language written in Python (version 3.13 or above). File map:
+This repository contains an implementation of the toy `PH` language written in Python (version 3.13 or above). File map:
 - [`result.py`](result.py): a Result type implementation taken from [https://github.com/rustedpy/result](https://github.com/rustedpy/result)
 - [`parser_combinator.py`](parser_combinator.py): a [parser combinator library](https://en.wikipedia.org/wiki/Parser_combinator)
 - [`ast_.py`](ast_.py): contains AST node definitions and the language parser.
@@ -13,7 +13,7 @@ This repository contains an implementation of the toy `klox` language written in
 
 (TODO) Link to the workshop slideshow. Follow along!
 
-## klox BNF grammer
+## PH BNF grammer
 
 Read the `*`, `+`, `[...]`, `?` symbols in the regex sense:
 - `*`: zero or more of

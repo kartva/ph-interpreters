@@ -145,10 +145,10 @@ class Parser[T]:
         return Parser(new_parser, f"or_not({self.name})")
     
     def eof(self) -> 'Parser[T]':
-        """Apply the parser, then check if the input is empty."""
+        """Apply the parser, then check if the input is only whitespace or empty."""
         def new_parser(input: str) -> Result[ParseSuccess[T], ParseError]:
             result = self.parse(input)
-            if result.is_ok() and not result.unwrap()[1]:
+            if result.is_ok() and not result.unwrap()[1].strip():
                 return result
             return Err(f"Expected EOF, found {result}")
         return Parser(new_parser, f"{self.name}.eof()")
