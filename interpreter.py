@@ -21,7 +21,7 @@ def interpret(astnode, \
             # Interpret all functions to add them to the functions dictionary.
             for func in function_declarations:
                 interpret(func, variables, functions)
-            
+
             return interpret(ast_.CallExpression(ast_.Identifier("main"), []), variables, functions)
 
         # --- Handling a function declaration ---
@@ -37,7 +37,7 @@ def interpret(astnode, \
             raise EarlyReturn(interpret(expression, variables, functions))
         case ast_.ExpressionStatement(expression):
             return interpret(expression, variables, functions)
-        
+
         # --- Handling compound statements ---
 
         case ast_.BlockStatement(statements):
@@ -126,7 +126,7 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: python interpreter.py <file>")
         exit(1)
-    
+
     file_path = sys.argv[1]
     try:
         with open(file_path, 'r') as file:
@@ -134,7 +134,7 @@ def main():
     except IOError as e:
         print(f"Error reading file: {e}")
         exit(1)
-    
+
     program = parse(program_text)
     result = interpret(program, {}, {})
     print("main() returned: ", result)

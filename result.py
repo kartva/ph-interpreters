@@ -53,10 +53,10 @@ class Ok(Generic[T]):
 
     def unwrap(self) -> T:
         return self._value
-    
+
     def map(self, op: Callable[[T], U]) -> 'Ok[U]':
         return Ok(op(self._value))
-    
+
 class Err(Generic[E]):
     """
     A value that signifies failure and which stores arbitrary data for the error.
@@ -88,8 +88,8 @@ class Err(Generic[E]):
 
     def unwrap(self) -> NoReturn:
         raise Exception(self._value)
-    
+
     def map(self, op: object) -> 'Err[E]':
         return self
-    
+
 Result: TypeAlias = Union[Ok[T], Err[E]]

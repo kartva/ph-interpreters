@@ -36,7 +36,7 @@ class VarSetStatement(Statement):
         self.rhs = rhs
     def __repr__(self):
         return f"VarStatement({self.name}, {self.rhs})"
-    
+
 class ReturnStatement(Statement):
     __match_args__ = ("expression",)
     def __init__(self, expression: 'Expression'):
@@ -72,7 +72,7 @@ class IfStatement(Statement):
             self.else_block = []
     def __repr__(self):
         return f"IfStatement({self.condition}, {self.then_block}, {self.else_block})"
-    
+
 class WhileStatement(Statement):
     __match_args__ = ("condition", "block")
     def __init__(self, condition: 'Expression', block: BlockStatement):
@@ -80,7 +80,7 @@ class WhileStatement(Statement):
         self.block = block
     def __repr__(self):
         return f"WhileStatement({self.condition}, {self.block})"
-    
+
 # --- Statements may contain expressions. ---
 
 class Expression(ASTNode):
@@ -92,7 +92,7 @@ class NumberLiteral(Expression):
         self.value = value
     def __repr__(self):
         return f"{self.value}"
-    
+
 # TODO: replace instances of Identifier with NewType bind to str
 
 class Identifier(Expression):
@@ -115,7 +115,7 @@ class BinaryExpression(Expression):
     def __repr__(self):
         return f"({self.left} {self.operator} {self.right})"
 
-    
+
 class CallExpression(Expression):
     __match_args__ = ("callee", "arguments")
     def __init__(self, callee: Expression, arguments: List[Expression]):
@@ -123,7 +123,7 @@ class CallExpression(Expression):
         self.arguments = arguments
     def __repr__(self):
         return f"{self.callee}({', '.join(map(str, self.arguments))})"
-    
+
 def parse(s: str, debug=False) -> Program:
     if debug: Parser.enable_debug()
 
@@ -137,15 +137,15 @@ def parse(s: str, debug=False) -> Program:
         atom: Parser[Expression] = num \
             .or_else(padded_ident) \
             .or_else(expr.between(p('('), p(')')))
-        
+
         call: Parser[Expression] = atom \
             .then_ignore(p('(')) \
             .then(expr.sep_by(p(','))) \
             .then_ignore(p(')')) \
             .map(lambda t: CallExpression(t[0], t[1]))
-        
+
         atom_or_call = call.or_else(atom)
-        
+
         # note that unary is defined in terms of atom, NOT expr
         # this is important to prevent parsing -2 * 2 as -(2 * 2)
 
@@ -154,7 +154,7 @@ def parse(s: str, debug=False) -> Program:
             p('-').repeated().map(lambda l: 1 if len(l) % 2 == 0 else -1) \
             .then(atom_or_call) \
             .map(lambda x: BinaryExpression(NumberLiteral(x[0]), '*', x[1]) if x[0] == -1 else x[1])
-        
+
         def foldl(t: Tuple[Expression, List[Tuple[str, Expression]]]) -> Expression:
             left, right = t
             for op, expr in right:
@@ -165,12 +165,12 @@ def parse(s: str, debug=False) -> Program:
             .then(
                 (p('*').or_else(p('/'))).then(unary).repeated()
             ).map(foldl)
-        
+
         sum: Parser[Expression] = product \
             .then(
                 (p('+').or_else(p('-'))).then(product).repeated()
             ).map(foldl)
-        
+
         compare: Parser[Expression] = sum \
             .then(
                 (p('==').or_else(p('!=')).or_else(p('<').or_else(p('>'))).or_else(p('<=').or_else(p('>='))).then(sum)).repeated()
@@ -188,7 +188,7 @@ def parse(s: str, debug=False) -> Program:
             .then(p("else").ignore_then(stmt_block).or_not()) \
             .map(lambda t: \
                 IfStatement(t[0][0], t[0][1], t[1]))
-        
+
         while_stmt = None # TODO: add parser combinator expression for while statement
 
         stmt: Parser[Statement] = return_stmt \
