@@ -56,8 +56,8 @@ def interpret(astnode, \
 
         case ast_.NumberLiteral(value):
             return value
-        case ast_.Identifier(_) as ident:
-            return variables[ident]
+        case ast_.Identifier(name):
+            return variables[name]
         case ast_.BinaryExpression(left, operator, right):
             left_value = interpret(left, variables, functions)
             right_value = interpret(right, variables, functions)
@@ -102,8 +102,8 @@ def interpret(astnode, \
 
             child_scope = variables.copy()
 
-            # zip(['a', 'b'], [1, 2]) -> [('a', 1), ('b', 2)]
-            parameter_value_map = dict(zip(fn_decl.parameters, argument_values))
+            # zip([Identifier('a'), Identifier('b')], [1, 2]) -> [('a', 1), ('b', 2)]
+            parameter_value_map = dict(zip(map(lambda p: p.ident, fn_decl.parameters), argument_values))
             child_scope.update(parameter_value_map)
 
             # Catch EarlyReturn when invoking the function body.
