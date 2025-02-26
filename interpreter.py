@@ -41,11 +41,9 @@ def interpret(astnode, \
         # --- Handling compound statements ---
 
         case ast_.BlockStatement(statements):
-            # Create a new scope so that variables declared in this block don't leak out.
-            child_scope = variables.copy()
             for statement in statements:
                 # Early return will propagate via exception; no special handling needed.
-                interpret(statement, child_scope, functions)
+                interpret(statement, variables, functions)
         case ast_.IfStatement(condition, then_block, else_block):
             if interpret(condition, variables, functions):
                 return interpret(then_block, variables, functions)
