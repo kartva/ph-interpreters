@@ -21,7 +21,7 @@ def interpret(astnode, \
             # Interpret all functions to add them to the functions dictionary.
             for func in function_declarations:
                 interpret(func, variables, functions)
-            
+
             return interpret(ast_.CallExpression(ast_.Identifier("main"), []), variables, functions)
 
         # --- Handling a function declaration ---
@@ -37,15 +37,13 @@ def interpret(astnode, \
             raise EarlyReturn(interpret(expression, variables, functions))
         case ast_.ExpressionStatement(expression):
             return interpret(expression, variables, functions)
-        
+
         # --- Handling compound statements ---
 
         case ast_.BlockStatement(statements):
-            # Create a new scope so that variables declared in this block don't leak out.
-            child_scope = variables.copy()
             for statement in statements:
                 # Early return will propagate via exception; no special handling needed.
-                interpret(statement, child_scope, functions)
+                interpret(statement, variables, functions)
         case ast_.IfStatement(condition, then_block, else_block):
             if interpret(condition, variables, functions):
                 return interpret(then_block, variables, functions)
@@ -58,8 +56,8 @@ def interpret(astnode, \
 
         case ast_.NumberLiteral(value):
             return value
-        case ast_.Identifier(_) as ident:
-            return variables[ident]
+        case ast_.Identifier(name):
+            return variables[name]
         case ast_.BinaryExpression(left, operator, right):
             left_value = interpret(left, variables, functions)
             right_value = interpret(right, variables, functions)
@@ -104,8 +102,8 @@ def interpret(astnode, \
 
             child_scope = variables.copy()
 
-            # zip(['a', 'b'], [1, 2]) -> [('a', 1), ('b', 2)]
-            parameter_value_map = dict(zip(fn_decl.parameters, argument_values))
+            # zip([Identifier('a'), Identifier('b')], [1, 2]) -> [('a', 1), ('b', 2)]
+            parameter_value_map = dict(zip(map(lambda p: p.ident, fn_decl.parameters), argument_values))
             child_scope.update(parameter_value_map)
 
             # Catch EarlyReturn when invoking the function body.
@@ -126,7 +124,7 @@ def main():
     if len(sys.argv) != 2:
         print("Usage: python interpreter.py <file>")
         exit(1)
-    
+
     file_path = sys.argv[1]
     try:
         with open(file_path, 'r') as file:
@@ -134,7 +132,7 @@ def main():
     except IOError as e:
         print(f"Error reading file: {e}")
         exit(1)
-    
+
     program = parse(program_text)
     result = interpret(program, {}, {})
     print("main() returned: ", result)
