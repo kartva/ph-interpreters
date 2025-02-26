@@ -51,9 +51,8 @@ def interpret(astnode, \
                 return interpret(then_block, variables, functions)
             elif else_block:
                 return interpret(else_block, variables, functions)
-        case ast_.WhileStatement(condition, body):
-            while interpret(condition, variables, functions):
-                interpret(body, variables, functions)
+
+        # TODO: Add WhileStatement case here
 
         # --- Handling expressions ---
 

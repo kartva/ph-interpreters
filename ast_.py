@@ -189,8 +189,7 @@ def parse(s: str, debug=False) -> Program:
             .map(lambda t: \
                 IfStatement(t[0][0], t[0][1], t[1]))
         
-        while_stmt = p("while").ignore_then(expr).then(stmt_block) \
-            .map(lambda t: WhileStatement(t[0], t[1]))
+        while_stmt = None # TODO: add parser combinator expression for while statement
 
         stmt: Parser[Statement] = return_stmt \
             .or_else(if_stmt) \
